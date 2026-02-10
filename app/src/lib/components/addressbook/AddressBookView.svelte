@@ -187,33 +187,35 @@
 
   <!-- Editor Modal -->
   {#if showEditor && editingAsset}
-  <div class="modal-overlay" onclick={() => showEditor = false}>
-    <div class="modal" onclick|stopPropagation>
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_interactive_supports_focus -->
+  <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Contact editor" tabindex="-1" onclick={() => showEditor = false} onkeydown={(e) => { if (e.key === 'Escape') showEditor = false; }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+    <div class="modal" role="document" onclick={(e) => e.stopPropagation()}>
       <div class="modal-header">
         <h3>{editingAsset.addressbook_ref ? 'Edit' : 'New'} Contact</h3>
         <button class="panel-close" onclick={() => showEditor = false}>&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">Name *</label>
-          <input class="form-input" bind:value={editingAsset.name} placeholder="Contact name" />
+          <label class="form-label" for="contact-name">Name *</label>
+          <input id="contact-name" class="form-input" bind:value={editingAsset.name} placeholder="Contact name" />
         </div>
         <div class="form-group">
-          <label class="form-label">Callsign</label>
-          <input class="form-input" bind:value={editingAsset.callsign} placeholder="CALLSIGN" />
+          <label class="form-label" for="contact-callsign">Callsign</label>
+          <input id="contact-callsign" class="form-input" bind:value={editingAsset.callsign} placeholder="CALLSIGN" />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Platform</label>
-            <select class="form-select" bind:value={editingAsset.platform}>
+            <label class="form-label" for="contact-platform">Platform</label>
+            <select id="contact-platform" class="form-select" bind:value={editingAsset.platform}>
               <option value="site">Site</option>
               <option value="mobile">Mobile</option>
               <option value="aircraft">Aircraft</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Status</label>
-            <select class="form-select" bind:value={editingAsset.status}>
+            <label class="form-label" for="contact-status">Status</label>
+            <select id="contact-status" class="form-select" bind:value={editingAsset.status}>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="maintenance">Maintenance</option>
@@ -222,21 +224,21 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Latitude</label>
-            <input class="form-input" type="number" step="0.0001" bind:value={editingAsset.position.lat} />
+            <label class="form-label" for="contact-lat">Latitude</label>
+            <input id="contact-lat" class="form-input" type="number" step="0.0001" bind:value={editingAsset.position.lat} />
           </div>
           <div class="form-group">
-            <label class="form-label">Longitude</label>
-            <input class="form-input" type="number" step="0.0001" bind:value={editingAsset.position.lon} />
+            <label class="form-label" for="contact-lon">Longitude</label>
+            <input id="contact-lon" class="form-input" type="number" step="0.0001" bind:value={editingAsset.position.lon} />
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Department</label>
-          <input class="form-input" bind:value={editingAsset.metadata.department} placeholder="Department" />
+          <label class="form-label" for="contact-dept">Department</label>
+          <input id="contact-dept" class="form-input" bind:value={editingAsset.metadata.department} placeholder="Department" />
         </div>
         <div class="form-group">
-          <label class="form-label">Notes</label>
-          <textarea class="form-input" rows="3" bind:value={editingAsset.metadata.notes} placeholder="Notes..."></textarea>
+          <label class="form-label" for="contact-notes">Notes</label>
+          <textarea id="contact-notes" class="form-input" rows="3" bind:value={editingAsset.metadata.notes} placeholder="Notes..."></textarea>
         </div>
       </div>
       <div class="modal-footer">

@@ -30,10 +30,10 @@
   let availReport = $derived(generateLinkAvailabilityReport(allLinks));
 
   // Plotly chart containers
-  let nodeChartEl;
-  let freqChartEl;
-  let satChartEl;
-  let availChartEl;
+  let nodeChartEl = $state();
+  let freqChartEl = $state();
+  let satChartEl = $state();
+  let availChartEl = $state();
 
   const darkLayout = {
     paper_bgcolor: '#161b22',

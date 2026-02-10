@@ -187,8 +187,8 @@
 
     <div class="gh-filters">
       <div class="filter-group">
-        <label class="form-label">Time Range</label>
-        <select class="form-select" bind:value={timeRange}>
+        <label class="form-label" for="gh-time-range">Time Range</label>
+        <select id="gh-time-range" class="form-select" bind:value={timeRange}>
           <option value={6}>6 hours</option>
           <option value={12}>12 hours</option>
           <option value={24}>24 hours</option>
@@ -197,8 +197,8 @@
       </div>
 
       <div class="filter-group">
-        <label class="form-label">Platform</label>
-        <select class="form-select" bind:value={platformFilter}>
+        <label class="form-label" for="gh-platform">Platform</label>
+        <select id="gh-platform" class="form-select" bind:value={platformFilter}>
           <option value="all">All Platforms</option>
           <option value="site">Site</option>
           <option value="mobile">Mobile</option>
@@ -207,8 +207,8 @@
       </div>
 
       <div class="filter-group">
-        <label class="form-label">Link Type</label>
-        <select class="form-select" bind:value={linkTypeFilter}>
+        <label class="form-label" for="gh-link-type">Link Type</label>
+        <select id="gh-link-type" class="form-select" bind:value={linkTypeFilter}>
           <option value="all">All Types</option>
           <option value="satellite">Satellite</option>
           <option value="los_radio">LOS Radio</option>
@@ -218,9 +218,9 @@
       </div>
 
       <div class="filter-group">
-        <label class="form-label">&nbsp;</label>
-        <label class="checkbox-label">
-          <input type="checkbox" bind:checked={autoScroll} />
+        <span class="form-label">&nbsp;</span>
+        <label class="checkbox-label" for="gh-auto-scroll">
+          <input id="gh-auto-scroll" type="checkbox" bind:checked={autoScroll} />
           Auto-scroll
         </label>
       </div>
