@@ -1,17 +1,17 @@
 <script>
-  import { assets, upsertAsset, removeAsset, searchQuery } from '$lib/data/stores.js';
+  import { onDestroy } from 'svelte';
+  import { assets, upsertAsset, removeAsset, currentView } from '$lib/data/stores.js';
   import { parseCommLinkXML, exportCommLinkXML, downloadFile, generateExportFilename } from '$lib/utils/xml.js';
+  import { toast } from '$lib/utils/toast.js';
 
   let allAssets = $state([]);
   let search = $state('');
   let platformFilter = $state('all');
   let showEditor = $state(false);
   let editingAsset = $state(null);
-  let toastMessage = $state('');
-  let toastType = $state('info');
-  let showToast = $state(false);
 
-  assets.subscribe(v => allAssets = v);
+  const unsub = assets.subscribe(v => allAssets = v);
+  onDestroy(unsub);
 
   let filtered = $derived(() => {
     let list = allAssets;
@@ -30,11 +30,12 @@
     return list;
   });
 
-  function toast(msg, type = 'info') {
-    toastMessage = msg;
-    toastType = type;
-    showToast = true;
-    setTimeout(() => showToast = false, 3000);
+  function viewOnMap(assetId) {
+    currentView.set('map');
+    // Dispatch a custom event so the page can tell MapView to focus
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('geocomm:focus-asset', { detail: assetId }));
+    }
   }
 
   function handleImport() {
@@ -177,6 +178,7 @@
           </div>
 
           <div class="contact-actions mt-sm">
+            <button class="btn btn-sm" onclick={() => viewOnMap(asset.id)}>View on Map</button>
             <button class="btn btn-sm" onclick={() => openEditor(asset)}>Edit</button>
             <button class="btn btn-sm" onclick={() => deleteContact(asset.id, asset.name)}>Delete</button>
           </div>
@@ -249,12 +251,7 @@
   </div>
   {/if}
 
-  <!-- Toast -->
-  {#if showToast}
-  <div class="toast-container">
-    <div class="toast toast-{toastType}">{toastMessage}</div>
-  </div>
-  {/if}
+
 </div>
 
 <style>

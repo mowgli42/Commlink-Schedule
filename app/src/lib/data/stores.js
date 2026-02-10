@@ -1,5 +1,6 @@
 /**
  * Reactive Svelte stores for the Geographical Comms Tracking system.
+ * Includes localStorage persistence and derived helpers.
  *
  * @typedef {{ lat: number, lon: number, alt_m: number, heading_deg: number, speed_kts: number, timestamp: string }} Position
  * @typedef {{ department?: string, notes?: string }} AssetMetadata
@@ -14,10 +15,14 @@
  * @typedef {{ id: string, name: string, norad_id: number, orbit_type: 'GEO'|'MEO'|'LEO', position_deg_w: number|null, provider: string, status: string, transponders: Transponder[] }} Satellite
  */
 
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { seedAssets, seedCommLinks, seedSatellites, seedFrequencies } from './seed.js';
+import { persistStore } from '$lib/utils/persist.js';
 
-// ─── Primary stores ────────────────────────────────────
+// Re-export get() so components can read stores without subscribing
+export { get } from 'svelte/store';
+
+// ─── Primary stores (persisted to localStorage) ────────
 
 /** @type {import('svelte/store').Writable<Asset[]>} */
 export const assets = writable(seedAssets);
@@ -30,6 +35,14 @@ export const satellites = writable(seedSatellites);
 
 /** @type {import('svelte/store').Writable<Frequency[]>} */
 export const frequencies = writable(seedFrequencies);
+
+// Wire up persistence (browser-only; safe to call at module level in SPA mode)
+if (typeof window !== 'undefined') {
+  persistStore(assets, 'assets', seedAssets);
+  persistStore(commLinks, 'commLinks', seedCommLinks);
+  persistStore(satellites, 'satellites', seedSatellites);
+  persistStore(frequencies, 'frequencies', seedFrequencies);
+}
 
 // ─── UI state stores ───────────────────────────────────
 
@@ -71,19 +84,25 @@ export const filteredAssets = derived(
   ([$assets, $platforms]) => $assets.filter(a => $platforms.has(a.platform))
 );
 
-/** Links filtered by visible types */
+/** Links filtered by visible types AND whose endpoints both exist in the asset list */
 export const filteredLinks = derived(
-  [commLinks, visibleLinkTypes],
-  ([$links, $types]) => $links.filter(l => $types.has(l.type))
+  [commLinks, visibleLinkTypes, assets],
+  ([$links, $types, $assets]) => {
+    const ids = new Set($assets.map(a => a.id));
+    return $links.filter(l =>
+      $types.has(l.type) &&
+      l.endpoints.every(ep => ids.has(ep))
+    );
+  }
 );
 
-/** Asset lookup map (id → asset) */
+/** Asset lookup map (id -> asset) */
 export const assetMap = derived(
   assets,
   ($assets) => new Map($assets.map(a => [a.id, a]))
 );
 
-/** Link lookup map (id → link) */
+/** Link lookup map (id -> link) */
 export const linkMap = derived(
   commLinks,
   ($links) => new Map($links.map(l => [l.id, l]))
@@ -115,10 +134,7 @@ export const stats = derived(
 
 // ─── Actions ───────────────────────────────────────────
 
-/**
- * Add or update an asset
- * @param {Asset} asset
- */
+/** Add or update an asset. */
 export function upsertAsset(asset) {
   assets.update(list => {
     const idx = list.findIndex(a => a.id === asset.id);
@@ -130,18 +146,14 @@ export function upsertAsset(asset) {
   });
 }
 
-/**
- * Remove an asset by ID
- * @param {string} id
- */
+/** Remove an asset by ID and clean up any links referencing it. */
 export function removeAsset(id) {
   assets.update(list => list.filter(a => a.id !== id));
+  // Remove links that referenced this asset
+  commLinks.update(list => list.filter(l => !l.endpoints.includes(id)));
 }
 
-/**
- * Add or update a comm link
- * @param {CommLink} link
- */
+/** Add or update a comm link. Also patches endpoint assets' commlinks arrays. */
 export function upsertCommLink(link) {
   commLinks.update(list => {
     const idx = list.findIndex(l => l.id === link.id);
@@ -151,20 +163,25 @@ export function upsertCommLink(link) {
     }
     return [...list, link];
   });
+  // Ensure endpoint assets reference this link
+  assets.update(list => list.map(a => {
+    if (link.endpoints.includes(a.id) && !a.commlinks.includes(link.id)) {
+      return { ...a, commlinks: [...a.commlinks, link.id] };
+    }
+    return a;
+  }));
 }
 
-/**
- * Remove a comm link by ID
- * @param {string} id
- */
+/** Remove a comm link by ID and clean up asset references. */
 export function removeCommLink(id) {
   commLinks.update(list => list.filter(l => l.id !== id));
+  assets.update(list => list.map(a => ({
+    ...a,
+    commlinks: a.commlinks.filter(lid => lid !== id)
+  })));
 }
 
-/**
- * Toggle a link type visibility
- * @param {string} type
- */
+/** Toggle a link type visibility. */
 export function toggleLinkType(type) {
   visibleLinkTypes.update(set => {
     const next = new Set(set);
@@ -174,10 +191,7 @@ export function toggleLinkType(type) {
   });
 }
 
-/**
- * Toggle a platform visibility
- * @param {string} platform
- */
+/** Toggle a platform visibility. */
 export function togglePlatform(platform) {
   visiblePlatforms.update(set => {
     const next = new Set(set);
@@ -185,4 +199,12 @@ export function togglePlatform(platform) {
     else next.add(platform);
     return next;
   });
+}
+
+/** Reset all stores to seed data and clear localStorage. */
+export function resetToSeedData() {
+  assets.set(seedAssets);
+  commLinks.set(seedCommLinks);
+  satellites.set(seedSatellites);
+  frequencies.set(seedFrequencies);
 }

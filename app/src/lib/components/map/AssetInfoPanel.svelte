@@ -1,16 +1,20 @@
 <script>
-  import { assets, commLinks, assetMap } from '$lib/data/stores.js';
+  import { onDestroy } from 'svelte';
+  import { assets, commLinks, assetMap, get } from '$lib/data/stores.js';
 
   /** @type {{ assetId: string, onclose: () => void }} */
   let { assetId, onclose } = $props();
 
-  let allAssets = $state([]);
-  let allLinks = $state([]);
-  let lookup = $state(new Map());
+  let allAssets = $state(get(assets));
+  let allLinks = $state(get(commLinks));
+  let lookup = $state(get(assetMap));
 
-  assets.subscribe(v => allAssets = v);
-  commLinks.subscribe(v => allLinks = v);
-  assetMap.subscribe(v => lookup = v);
+  const unsubs = [
+    assets.subscribe(v => allAssets = v),
+    commLinks.subscribe(v => allLinks = v),
+    assetMap.subscribe(v => lookup = v)
+  ];
+  onDestroy(() => unsubs.forEach(u => u()));
 
   let asset = $derived(allAssets.find(a => a.id === assetId));
   let assetLinks = $derived(

@@ -1,14 +1,17 @@
 <script>
-  import { onMount } from 'svelte';
-  import { assets, commLinks, assetMap } from '$lib/data/stores.js';
+  import { onMount, onDestroy } from 'svelte';
+  import { assets, commLinks, assetMap, get } from '$lib/data/stores.js';
 
-  let allAssets = $state([]);
-  let allLinks = $state([]);
-  let lookup = $state(new Map());
+  let allAssets = $state(get(assets));
+  let allLinks = $state(get(commLinks));
+  let lookup = $state(get(assetMap));
 
-  assets.subscribe(v => allAssets = v);
-  commLinks.subscribe(v => allLinks = v);
-  assetMap.subscribe(v => lookup = v);
+  const unsubs = [
+    assets.subscribe(v => allAssets = v),
+    commLinks.subscribe(v => allLinks = v),
+    assetMap.subscribe(v => lookup = v)
+  ];
+  onDestroy(() => unsubs.forEach(u => u()));
 
   let timeRange = $state(12); // hours
   let autoScroll = $state(true);
@@ -67,57 +70,64 @@
    * @returns {Array<{start: Date, end: Date, status: string}>}
    */
   function generateBlocks(link, start, end) {
-    if (!link.schedule) {
-      // No schedule: fill entire range with current status
+    if (!link.schedule || !link.schedule.start || !link.schedule.end) {
       return [{ start, end, status: link.status }];
     }
 
     const schedStart = new Date(link.schedule.start);
     const schedEnd = new Date(link.schedule.end);
-    const blocks = [];
+    const windowMs = schedEnd.getTime() - schedStart.getTime();
+    if (windowMs <= 0) return [{ start, end, status: link.status }];
 
-    // Simple model: scheduled window = link status, outside = unavailable
-    // Repeat daily if recurrence is 'daily'
     const dayMs = 86400000;
-    let dayOffset = 0;
+    const isDaily = link.schedule.recurrence === 'daily';
 
-    while (dayOffset < timeRange * 3600000 + dayMs) {
-      const blockStart = new Date(schedStart.getTime() + Math.floor((start.getTime() - schedStart.getTime()) / dayMs + dayOffset / dayMs) * dayMs);
-      const blockEnd = new Date(blockStart.getTime() + (schedEnd.getTime() - schedStart.getTime()));
+    // Collect all scheduled windows that overlap [start, end]
+    /** @type {Array<{start: Date, end: Date}>} */
+    const windows = [];
 
-      if (blockEnd.getTime() > start.getTime() && blockStart.getTime() < end.getTime()) {
-        // Before scheduled: unavailable
-        if (blockStart.getTime() > start.getTime() && blocks.length === 0) {
-          blocks.push({
-            start: start,
-            end: new Date(Math.min(blockStart.getTime(), end.getTime())),
-            status: 'unavailable'
-          });
-        }
-
-        // Scheduled window
-        blocks.push({
-          start: new Date(Math.max(blockStart.getTime(), start.getTime())),
-          end: new Date(Math.min(blockEnd.getTime(), end.getTime())),
-          status: link.status
-        });
-
-        // After scheduled: unavailable
-        if (blockEnd.getTime() < end.getTime()) {
-          blocks.push({
-            start: blockEnd,
-            end: end,
-            status: 'unavailable'
-          });
+    if (isDaily) {
+      // Find the first occurrence on or before our start
+      const daysBefore = Math.floor((start.getTime() - schedStart.getTime()) / dayMs);
+      for (let d = Math.max(0, daysBefore - 1); ; d++) {
+        const ws = new Date(schedStart.getTime() + d * dayMs);
+        const we = new Date(ws.getTime() + windowMs);
+        if (ws.getTime() >= end.getTime()) break;
+        if (we.getTime() > start.getTime()) {
+          windows.push({ start: ws, end: we });
         }
       }
-
-      dayOffset += dayMs;
-      if (link.schedule.recurrence !== 'daily') break;
+    } else {
+      // One-shot: only if it overlaps
+      if (schedEnd.getTime() > start.getTime() && schedStart.getTime() < end.getTime()) {
+        windows.push({ start: schedStart, end: schedEnd });
+      }
     }
 
-    if (blocks.length === 0) {
-      blocks.push({ start, end, status: 'unavailable' });
+    if (windows.length === 0) {
+      return [{ start, end, status: 'unavailable' }];
+    }
+
+    // Build blocks by filling gaps with 'unavailable'
+    const blocks = [];
+    let cursor = start;
+
+    for (const w of windows) {
+      const wStart = new Date(Math.max(w.start.getTime(), start.getTime()));
+      const wEnd = new Date(Math.min(w.end.getTime(), end.getTime()));
+
+      // Gap before this window
+      if (wStart.getTime() > cursor.getTime()) {
+        blocks.push({ start: new Date(cursor), end: wStart, status: 'unavailable' });
+      }
+      // The scheduled window
+      blocks.push({ start: wStart, end: wEnd, status: link.status });
+      cursor = wEnd;
+    }
+
+    // Trailing gap
+    if (cursor.getTime() < end.getTime()) {
+      blocks.push({ start: new Date(cursor), end: end, status: 'unavailable' });
     }
 
     return blocks;

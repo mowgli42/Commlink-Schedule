@@ -1,6 +1,6 @@
 <script>
-  import { onMount } from 'svelte';
-  import { assets, commLinks, frequencies, satellites } from '$lib/data/stores.js';
+  import { onMount, onDestroy } from 'svelte';
+  import { assets, commLinks, frequencies, satellites, get } from '$lib/data/stores.js';
   import {
     generateNodeStatusReport,
     generateFrequencyReport,
@@ -14,15 +14,18 @@
   let Plotly;
   let plotReady = $state(false);
 
-  let allAssets = $state([]);
-  let allLinks = $state([]);
-  let allFreqs = $state([]);
-  let allSats = $state([]);
+  let allAssets = $state(get(assets));
+  let allLinks = $state(get(commLinks));
+  let allFreqs = $state(get(frequencies));
+  let allSats = $state(get(satellites));
 
-  assets.subscribe(v => allAssets = v);
-  commLinks.subscribe(v => allLinks = v);
-  frequencies.subscribe(v => allFreqs = v);
-  satellites.subscribe(v => allSats = v);
+  const unsubs = [
+    assets.subscribe(v => allAssets = v),
+    commLinks.subscribe(v => allLinks = v),
+    frequencies.subscribe(v => allFreqs = v),
+    satellites.subscribe(v => allSats = v)
+  ];
+  onDestroy(() => unsubs.forEach(u => u()));
 
   let nodeReport = $derived(generateNodeStatusReport(allAssets, allLinks));
   let freqReport = $derived(generateFrequencyReport(allFreqs, allAssets));

@@ -1,22 +1,51 @@
 <script>
-	import { currentView, stats } from '$lib/data/stores.js';
+	import { onMount, onDestroy } from 'svelte';
+	import { currentView, stats, get, resetToSeedData } from '$lib/data/stores.js';
+	import { toast } from '$lib/utils/toast.js';
+	import { clearAllStorage } from '$lib/utils/persist.js';
 	import MapView from '$lib/components/map/MapView.svelte';
 	import AddressBookView from '$lib/components/addressbook/AddressBookView.svelte';
 	import ReportsView from '$lib/components/reports/ReportsView.svelte';
 	import GuitarHeroView from '$lib/components/guitarhero/GuitarHeroView.svelte';
-
-	let statsVal = $derived.by(() => {
-		let val;
-		stats.subscribe(v => val = v)();
-		return val;
-	});
-
-	function setView(view) {
-		currentView.set(view);
-	}
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	let view = $state('map');
-	currentView.subscribe(v => view = v);
+	let statsVal = $state(get(stats));
+	let mapViewRef = $state();
+
+	const unsubs = [
+		currentView.subscribe(v => view = v),
+		stats.subscribe(v => statsVal = v)
+	];
+	onDestroy(() => unsubs.forEach(u => u()));
+
+	function setView(v) {
+		currentView.set(v);
+	}
+
+	function handleReset() {
+		if (confirm('Reset all data to defaults? This cannot be undone.')) {
+			clearAllStorage();
+			resetToSeedData();
+			toast('Data reset to defaults', 'info');
+		}
+	}
+
+	// Listen for "View on Map" events from Address Book
+	function handleFocusAsset(e) {
+		const assetId = e.detail;
+		// Small delay so the map view has time to mount
+		setTimeout(() => {
+			if (mapViewRef?.focusAsset) {
+				mapViewRef.focusAsset(assetId);
+			}
+		}, 100);
+	}
+
+	onMount(() => {
+		window.addEventListener('geocomm:focus-asset', handleFocusAsset);
+		return () => window.removeEventListener('geocomm:focus-asset', handleFocusAsset);
+	});
 </script>
 
 <div class="app-layout">
@@ -57,7 +86,7 @@
 			</div>
 			<div class="stat-item">
 				<div class="stat-dot" style="background: var(--color-satellite)"></div>
-				{statsVal.activeLinks} active links
+				{statsVal.activeLinks} active
 			</div>
 			<div class="stat-item">
 				<div class="stat-dot" style="background: var(--color-degraded)"></div>
@@ -67,6 +96,9 @@
 				<div class="stat-dot" style="background: var(--color-unavailable)"></div>
 				{statsVal.unavailableLinks} down
 			</div>
+			<button class="nav-link" onclick={handleReset} title="Reset to seed data" style="margin-left:var(--space-sm);font-size:var(--text-xs);padding:2px 6px;">
+				Reset
+			</button>
 		</div>
 		{/if}
 	</nav>
@@ -75,7 +107,7 @@
 	<div class="app-main">
 		<div class="app-content">
 			{#if view === 'map'}
-				<MapView />
+				<MapView bind:this={mapViewRef} />
 			{:else if view === 'addressbook'}
 				<AddressBookView />
 			{:else if view === 'reports'}
@@ -86,3 +118,5 @@
 		</div>
 	</div>
 </div>
+
+<ToastContainer />
