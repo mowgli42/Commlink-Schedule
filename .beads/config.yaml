@@ -1,0 +1,11 @@
+# Beads configuration for Geographical Comms Tracking
+# See: https://github.com/steveyegge/beads
+
+project:
+  name: geocomm-tracker
+  description: Geographical Communication Link Tracking System
+  version: 0.1.0
+
+tracking:
+  auto_sync: true
+  compact_after: 30  # days

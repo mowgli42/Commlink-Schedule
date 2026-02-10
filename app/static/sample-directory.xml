@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="enterprise-contact-directory.xsl"?>
+<EnterpriseContactDirectory exported="2026-02-10T12:00:00.000Z" version="1.0">
+
+  <Contact id="c001-ops-center-alpha" platform="site">
+    <Name>Ops Center Alpha</Name>
+    <Location>Building 7, Floor 3</Location>
+    <Department>Operations</Department>
+    <Notes>Primary operations center - 24/7 staffed</Notes>
+    <CreatedAt>2026-01-15T08:00:00.000Z</CreatedAt>
+    <UpdatedAt>2026-02-01T14:30:00.000Z</UpdatedAt>
+    <VoIP>
+      <IP>10.0.1.100</IP>
+      <Port>5060</Port>
+      <Extension>1001</Extension>
+      <Codec>G.722</Codec>
+      <Protocol>SIP</Protocol>
+      <Transport>TLS</Transport>
+    </VoIP>
+    <XMPP>
+      <JID>ops-alpha@chat.enterprise.local</JID>
+      <Server>chat.enterprise.local</Server>
+      <IP>10.0.2.50</IP>
+      <Port>5222</Port>
+      <Encryption>STARTTLS</Encryption>
+      <Conference>ops-room@conference.enterprise.local</Conference>
+    </XMPP>
+  </Contact>
+
+  <Contact id="c005-mobile-unit-bravo" platform="mobile">
+    <Name>Mobile Unit Bravo</Name>
+    <Location>Field Deployment Zone 3</Location>
+    <Department>Field Ops</Department>
+    <Notes>Equipped with SATCOM terminal and VHF radio</Notes>
+    <CreatedAt>2026-01-20T10:00:00.000Z</CreatedAt>
+    <UpdatedAt>2026-02-10T14:00:00.000Z</UpdatedAt>
+    <VoIP>
+      <IP>10.0.3.50</IP>
+      <Port>5060</Port>
+      <Extension>3050</Extension>
+      <Codec>Opus</Codec>
+      <Protocol>SIP</Protocol>
+      <Transport>UDP</Transport>
+    </VoIP>
+  </Contact>
+
+  <Contact id="c008-eagle-one" platform="aircraft">
+    <Name>Eagle One</Name>
+    <Location>Airborne - Patrol Sector 7</Location>
+    <Department>Air Ops</Department>
+    <Notes>Fixed-wing surveillance aircraft</Notes>
+    <CreatedAt>2026-01-25T06:00:00.000Z</CreatedAt>
+    <UpdatedAt>2026-02-10T14:30:00.000Z</UpdatedAt>
+    <VoIP>
+      <IP>10.0.4.10</IP>
+      <Port>5060</Port>
+      <Extension>4010</Extension>
+      <Codec>AMR-WB</Codec>
+      <Protocol>SIP</Protocol>
+      <Transport>UDP</Transport>
+    </VoIP>
+    <CustomServices>
+      <Service>
+        <ServiceName>SATCOM Terminal</ServiceName>
+        <IP>10.0.4.11</IP>
+        <Port>8443</Port>
+        <Description>Iridium NEXT satellite terminal management interface</Description>
+      </Service>
+    </CustomServices>
+  </Contact>
+
+</EnterpriseContactDirectory>

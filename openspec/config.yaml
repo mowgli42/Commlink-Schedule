@@ -1,0 +1,29 @@
+schema: spec-driven
+
+context: |
+  Tech stack: JavaScript, Svelte 5, SvelteKit, Leaflet.js, Plotly.js
+  Database: SQLite (better-sqlite3) + JSON flat files
+  Address book: Commlink-Directory XML format
+  Design: IxDF guidelines, dark theme, responsive
+  Progress tracking: Beads (bd CLI)
+
+  Domain: Military/enterprise communication link tracking
+  Assets: Mobile ground units, aircraft, fixed sites
+  Links: Satellite (GEO/MEO/LEO), line-of-sight radio, VoIP, XMPP
+  Reports: Node status, frequency allocation, satellite usage, link availability
+
+rules:
+  specs:
+    - All comm link types must define frequency, bandwidth, and protocol
+    - Assets must have platform type (site, mobile, aircraft) matching Commlink-Directory schema
+    - Geographic coordinates use WGS84 (lat/lon decimal degrees)
+    - Time values use ISO 8601 with timezone
+  tasks:
+    - Each task should be trackable via Beads
+    - UI tasks must reference IxDF design principles applied
+    - Data tasks must include JSON schema validation
+  design:
+    - Follow IxDF principles: visibility, feedback, constraints, consistency, affordance
+    - Dark theme as default with high-contrast operational colors
+    - Map-centric layout with collapsible side panels
+    - Responsive: desktop sidebar → mobile stacked
