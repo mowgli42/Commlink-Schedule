@@ -1,0 +1,25 @@
+# OpenSpec change metadata
+name: v1-geographical-comms-tracking
+status: active
+created: 2026-02-10
+description: >
+  Initial version of the Geographical Communication Link Tracking system.
+  Includes map view, address book, reports, and Guitar Hero timeline preview.
+
+artifacts:
+  - proposal.md
+  - design.md
+  - tasks.md
+
+specs_affected:
+  - comm-tracking
+  - address-book
+  - reports
+  - guitar-hero
+
+tags:
+  - v1
+  - map
+  - reports
+  - addressbook
+  - guitarhero
