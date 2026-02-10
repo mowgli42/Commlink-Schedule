@@ -1,0 +1,25 @@
+{"id":"bd-a1f0","type":"epic","title":"Geographical Comms Tracking v1","status":"in_progress","priority":0,"created":"2026-02-10T12:00:00Z","labels":["v1","core"]}
+{"id":"bd-a1f0.1","type":"task","title":"OpenSpec proposal & design documents","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:01:00Z","labels":["docs"]}
+{"id":"bd-a1f0.2","type":"task","title":"Project scaffolding (SvelteKit + Leaflet + Plotly)","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:02:00Z","labels":["infra"]}
+{"id":"bd-a1f0.3","type":"task","title":"Data models & Svelte stores","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:03:00Z","labels":["data"]}
+{"id":"bd-a1f0.4","type":"task","title":"Leaflet map view with asset markers & comm link lines","status":"closed","priority":0,"parent":"bd-a1f0","created":"2026-02-10T12:04:00Z","labels":["map","ui"]}
+{"id":"bd-a1f0.5","type":"task","title":"Asset info panel (slide-out detail view)","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:05:00Z","labels":["map","ui"]}
+{"id":"bd-a1f0.6","type":"task","title":"Map controls (link type & platform filters)","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:06:00Z","labels":["map","ui"]}
+{"id":"bd-a1f0.7","type":"task","title":"Address book view with contact cards","status":"closed","priority":0,"parent":"bd-a1f0","created":"2026-02-10T12:07:00Z","labels":["addressbook","ui"]}
+{"id":"bd-a1f0.8","type":"task","title":"Commlink-Directory XML import/export","status":"closed","priority":0,"parent":"bd-a1f0","created":"2026-02-10T12:08:00Z","labels":["addressbook","data"]}
+{"id":"bd-a1f0.9","type":"task","title":"Contact editor modal (create/edit)","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:09:00Z","labels":["addressbook","ui"]}
+{"id":"bd-a1f0.10","type":"task","title":"Node status report with Plotly chart","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:10:00Z","labels":["reports"]}
+{"id":"bd-a1f0.11","type":"task","title":"Frequency allocation report","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:11:00Z","labels":["reports"]}
+{"id":"bd-a1f0.12","type":"task","title":"Satellite usage report with gauge charts","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:12:00Z","labels":["reports"]}
+{"id":"bd-a1f0.13","type":"task","title":"Link availability report","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:13:00Z","labels":["reports"]}
+{"id":"bd-a1f0.14","type":"task","title":"CSV/JSON report export","status":"closed","priority":2,"parent":"bd-a1f0","created":"2026-02-10T12:14:00Z","labels":["reports","data"]}
+{"id":"bd-a1f0.15","type":"task","title":"Guitar Hero timeline display (v2 mockup)","status":"closed","priority":2,"parent":"bd-a1f0","created":"2026-02-10T12:15:00Z","labels":["guitarhero","ui","v2"]}
+{"id":"bd-a1f0.16","type":"task","title":"IxDF design system (CSS custom properties, dark theme)","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:16:00Z","labels":["design","ui"]}
+{"id":"bd-a1f0.17","type":"task","title":"Responsive layout (desktop + mobile)","status":"open","priority":2,"parent":"bd-a1f0","created":"2026-02-10T12:17:00Z","labels":["design","ui"]}
+{"id":"bd-a1f0.18","type":"task","title":"README & documentation","status":"closed","priority":2,"parent":"bd-a1f0","created":"2026-02-10T12:18:00Z","labels":["docs"]}
+{"id":"bd-b2e0","type":"epic","title":"Geographical Comms Tracking v2 — Guitar Hero Live","status":"open","priority":1,"created":"2026-02-10T12:20:00Z","labels":["v2","future"]}
+{"id":"bd-b2e0.1","type":"task","title":"Real-time comm link status feed integration","status":"open","priority":1,"parent":"bd-b2e0","created":"2026-02-10T12:21:00Z","labels":["v2","data"]}
+{"id":"bd-b2e0.2","type":"task","title":"Animated playhead with auto-scroll","status":"open","priority":1,"parent":"bd-b2e0","created":"2026-02-10T12:22:00Z","labels":["v2","ui"]}
+{"id":"bd-b2e0.3","type":"task","title":"Historical playback mode","status":"open","priority":2,"parent":"bd-b2e0","created":"2026-02-10T12:23:00Z","labels":["v2","ui"]}
+{"id":"bd-b2e0.4","type":"task","title":"SQLite persistent storage backend","status":"open","priority":1,"parent":"bd-b2e0","created":"2026-02-10T12:24:00Z","labels":["v2","data"]}
+{"id":"bd-b2e0.5","type":"task","title":"Multi-region support","status":"open","priority":2,"parent":"bd-b2e0","created":"2026-02-10T12:25:00Z","labels":["v2","feature"]}
