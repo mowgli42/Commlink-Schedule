@@ -1,4 +1,4 @@
-{"id":"bd-a1f0","type":"epic","title":"Geographical Comms Tracking v1","status":"in_progress","priority":0,"created":"2026-02-10T12:00:00Z","labels":["v1","core"]}
+{"id":"bd-a1f0","type":"epic","title":"Geographical Comms Tracking v1","status":"closed","priority":0,"created":"2026-02-10T12:00:00Z","closed":"2026-02-10T15:30:00Z","labels":["v1","core"]}
 {"id":"bd-a1f0.1","type":"task","title":"OpenSpec proposal & design documents","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:01:00Z","labels":["docs"]}
 {"id":"bd-a1f0.2","type":"task","title":"Project scaffolding (SvelteKit + Leaflet + Plotly)","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:02:00Z","labels":["infra"]}
 {"id":"bd-a1f0.3","type":"task","title":"Data models & Svelte stores","status":"closed","priority":1,"parent":"bd-a1f0","created":"2026-02-10T12:03:00Z","labels":["data"]}

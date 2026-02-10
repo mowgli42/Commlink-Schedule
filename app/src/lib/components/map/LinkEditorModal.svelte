@@ -11,19 +11,26 @@
   let allAssets = $state(get(assets));
   const unsub = assets.subscribe(v => allAssets = v);
 
-  // Form state — either populate from existing link or start fresh
-  let form = $state(link ? structuredClone(link) : {
-    id: `link-${Date.now()}`,
-    name: '',
-    type: 'satellite',
-    subtype: '',
-    status: 'active',
-    endpoints: ['', ''],
-    frequency: { value_mhz: null, bandwidth_khz: null, polarization: '', modulation: '' },
-    satellite: null,
-    schedule: { start: '', end: '', recurrence: 'daily' },
-    quality: { signal_strength_dbm: null, ber: null, latency_ms: null }
-  });
+  // Build initial form value (runs once at mount; the modal is destroyed/recreated on each open)
+  function buildInitialForm(existing) {
+    if (existing) return structuredClone(existing);
+    return {
+      id: `link-${Date.now()}`,
+      name: '',
+      type: 'satellite',
+      subtype: '',
+      status: 'active',
+      endpoints: ['', ''],
+      frequency: { value_mhz: null, bandwidth_khz: null, polarization: '', modulation: '' },
+      satellite: null,
+      schedule: { start: '', end: '', recurrence: 'daily' },
+      quality: { signal_strength_dbm: null, ber: null, latency_ms: null }
+    };
+  }
+
+  // Modal is destroyed/recreated on each open, so capturing initial value is correct.
+  // svelte-ignore state_referenced_locally
+  let form = $state(buildInitialForm(link));
 
   let showSatFields = $derived(form.type === 'satellite');
 
@@ -81,7 +88,7 @@
 <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Link editor" tabindex="-1"
      onclick={onclose} onkeydown={handleKeydown}>
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
-  <div class="modal modal-wide" role="document" onclick={(e) => e.stopPropagation()}>
+  <div class="modal modal-wide" role="presentation" onclick={(e) => e.stopPropagation()}>
     <div class="modal-header">
       <h3>{link ? 'Edit' : 'New'} Comm Link</h3>
       <button class="panel-close" onclick={onclose}>&times;</button>
