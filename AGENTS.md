@@ -43,3 +43,12 @@ npm run build # Static build to app/build/
 - CSS custom properties in `app/src/app.css`
 - RFC 2119 language in specs (SHALL, MUST, SHOULD, MAY)
 - Dark theme first (operational environment)
+
+## Cursor Cloud specific instructions
+
+- **Single service**: This is a purely client-side SPA — no backend, no database, no Docker. The only service to run is the Vite dev server (`npm run dev` in `app/`).
+- **Dev server**: Start with `cd app && npm run dev -- --host 0.0.0.0` to bind to all interfaces (needed for Cloud Agent browser access). Runs on port 5173.
+- **Type checking**: `npm run check` reports many implicit-`any` warnings in `.js` files (pre-existing). These do not block the build or runtime. The build (`npm run build`) succeeds cleanly.
+- **No dedicated lint command**: The project has no ESLint config. `npm run check` (svelte-check) is the closest lint/type-check available.
+- **No automated tests**: Playwright is listed as a devDependency but no test files exist yet. Manual testing via the browser is the primary verification method.
+- **Map tiles**: Leaflet loads CartoDB dark tiles from an external CDN. If internet is unavailable the map background will be blank, but the app itself still functions.
