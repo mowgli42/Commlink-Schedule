@@ -80,13 +80,13 @@ The system SHALL generate a report showing satellite transponder utilization.
 
 ### Requirement: Link Availability Report
 
-The system SHALL generate a report showing communication link uptime and availability.
+The system SHALL generate a report showing communication link uptime, availability, reservation state, and billing model.
 
 #### Scenario: Per-link uptime
 
 - GIVEN 10 comm links with availability history
 - WHEN the user navigates to Reports > Link Availability
-- THEN each link shows: name, type, uptime percentage, total hours available/unavailable
+- THEN each link shows: name, type, backing resource, billing label, reservation state, uptime percentage, scheduled hours, used hours, available/unavailable hours, and estimated cost
 
 #### Scenario: Availability timeline
 
@@ -99,7 +99,29 @@ The system SHALL generate a report showing communication link uptime and availab
 
 - GIVEN the link availability report
 - WHEN viewing the summary section
-- THEN aggregate stats show: mean availability %, worst link, best link, total downtime hours
+- THEN aggregate stats show: mean availability %, worst link, best link, total downtime hours, and metered cost
+
+### Requirement: Resource Utilization Report
+
+The system SHALL generate a utilization report grouped by resource, asset, and comm link.
+
+#### Scenario: Resource utilization
+
+- GIVEN resources with reservations and usage records
+- WHEN the user navigates to Reports > Utilization
+- THEN the resource table shows resource name, kind, provider, billing label, reserved hours, used hours, utilization percentage, remaining included minutes, and cost
+
+#### Scenario: Asset consumer utilization
+
+- GIVEN usage records tied to assets
+- WHEN the utilization report is displayed
+- THEN the asset table shows callsign, asset name, number of links used, used hours, data volume, and cost
+
+#### Scenario: Link consumer utilization
+
+- GIVEN usage records tied to comm links
+- WHEN the utilization report is displayed
+- THEN the link table shows link name, type, billing label, used hours, data volume, and cost
 
 ### Requirement: Report Export
 

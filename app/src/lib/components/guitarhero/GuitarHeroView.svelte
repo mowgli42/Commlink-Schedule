@@ -1,15 +1,32 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { assets, commLinks, assetMap, get } from '$lib/data/stores.js';
+  import {
+    assets,
+    commLinks,
+    assetMap,
+    resources,
+    contracts,
+    reservations,
+    usageRecords,
+    get
+  } from '$lib/data/stores.js';
 
   let allAssets = $state(get(assets));
   let allLinks = $state(get(commLinks));
   let lookup = $state(get(assetMap));
+  let allResources = $state(get(resources));
+  let allContracts = $state(get(contracts));
+  let allReservations = $state(get(reservations));
+  let allUsage = $state(get(usageRecords));
 
   const unsubs = [
     assets.subscribe(v => allAssets = v),
     commLinks.subscribe(v => allLinks = v),
-    assetMap.subscribe(v => lookup = v)
+    assetMap.subscribe(v => lookup = v),
+    resources.subscribe(v => allResources = v),
+    contracts.subscribe(v => allContracts = v),
+    reservations.subscribe(v => allReservations = v),
+    usageRecords.subscribe(v => allUsage = v)
   ];
   onDestroy(() => unsubs.forEach(u => u()));
 
@@ -17,10 +34,10 @@
   let autoScroll = $state(true);
   let platformFilter = $state('all');
   let linkTypeFilter = $state('all');
+  let viewMode = $state('asset'); // asset | resource | link
   let timelineEl;
   let currentTime = $state(new Date());
 
-  // Update current time every second
   let interval;
   onMount(() => {
     interval = setInterval(() => {
@@ -29,12 +46,10 @@
     return () => clearInterval(interval);
   });
 
-  // Compute timeline bounds
   let timeStart = $derived(new Date(currentTime.getTime() - (timeRange / 4) * 3600000));
   let timeEnd = $derived(new Date(timeStart.getTime() + timeRange * 3600000));
   let totalMs = $derived(timeEnd.getTime() - timeStart.getTime());
 
-  // Filter assets
   let displayAssets = $derived(() => {
     let list = allAssets;
     if (platformFilter !== 'all') {
@@ -43,94 +58,173 @@
     return list;
   });
 
-  // Build track data
+  const contractByResource = $derived(new Map(allContracts.map(c => [c.resource_id, c])));
+  const resourceById = $derived(new Map(allResources.map(r => [r.id, r])));
+
   let tracks = $derived(() => {
-    return displayAssets().map(asset => {
-      const assetLinks = allLinks.filter(l => l.endpoints.includes(asset.id));
-      let filteredLinks = assetLinks;
-      if (linkTypeFilter !== 'all') {
-        filteredLinks = assetLinks.filter(l => l.type === linkTypeFilter);
-      }
-
-      const linkTracks = filteredLinks.map(link => {
-        // Generate blocks based on schedule
-        const blocks = generateBlocks(link, timeStart, timeEnd);
-        return { link, blocks };
-      });
-
-      return { asset, linkTracks };
-    }).filter(t => t.linkTracks.length > 0);
+    if (viewMode === 'resource') return buildResourceTracks();
+    if (viewMode === 'link') return buildLinkTracks();
+    return buildAssetTracks();
   });
 
-  /**
-   * Generate availability blocks for a link within a time range.
-   * @param {import('../../data/stores.js').CommLink} link
-   * @param {Date} start
-   * @param {Date} end
-   * @returns {Array<{start: Date, end: Date, status: string}>}
-   */
-  function generateBlocks(link, start, end) {
-    if (!link.schedule || !link.schedule.start || !link.schedule.end) {
-      return [{ start, end, status: link.status }];
-    }
+  function buildAssetTracks() {
+    return displayAssets().map(asset => {
+      const assetLinks = allLinks.filter(l => l.endpoints.includes(asset.id));
+      const filteredLinks = linkTypeFilter === 'all' ? assetLinks : assetLinks.filter(l => l.type === linkTypeFilter);
+      const linkTracks = filteredLinks.map(link => ({
+        label: link.name,
+        color: LINK_COLORS[link.type] || '#888',
+        billing: contractByResource.get(link.resource_id)?.label ?? 'N/A',
+        blocks: generateLinkBlocks(link, timeStart, timeEnd)
+      }));
+      return {
+        id: asset.id,
+        label: asset.callsign,
+        badge: asset.platform,
+        badgeClass: asset.platform,
+        linkTracks
+      };
+    }).filter(t => t.linkTracks.length > 0);
+  }
 
-    const schedStart = new Date(link.schedule.start);
-    const schedEnd = new Date(link.schedule.end);
+  function buildResourceTracks() {
+    return allResources.map(resource => {
+      const contract = contractByResource.get(resource.id);
+      const blocks = generateResourceBlocks(resource, timeStart, timeEnd);
+      return {
+        id: resource.id,
+        label: resource.name,
+        badge: contract?.label ?? resource.kind.replaceAll('_', ' '),
+        badgeClass: contract?.billing_model ?? resource.status,
+        linkTracks: [{
+          label: `${resource.kind.replaceAll('_', ' ')}${contract ? ` · ${contract.label}` : ''}`,
+          color: RESOURCE_COLORS[resource.kind] || '#8b949e',
+          billing: contract?.label ?? 'N/A',
+          blocks
+        }]
+      };
+    }).filter(t => t.linkTracks[0].blocks.length > 0);
+  }
+
+  function buildLinkTracks() {
+    let filteredLinks = allLinks;
+    if (linkTypeFilter !== 'all') filteredLinks = filteredLinks.filter(l => l.type === linkTypeFilter);
+    return filteredLinks.map(link => {
+      const resource = resourceById.get(link.resource_id);
+      const contract = contractByResource.get(link.resource_id);
+      return {
+        id: link.id,
+        label: link.name,
+        badge: contract?.label ?? link.type,
+        badgeClass: contract?.billing_model ?? link.type,
+        linkTracks: [{
+          label: resource?.name ?? 'Unassigned resource',
+          color: LINK_COLORS[link.type] || '#888',
+          billing: contract?.label ?? 'N/A',
+          blocks: generateLinkBlocks(link, timeStart, timeEnd)
+        }]
+      };
+    });
+  }
+
+  function generateResourceBlocks(resource, start, end) {
+    const reservationBlocks = allReservations
+      .filter(r => r.resource_id === resource.id)
+      .flatMap(r => clipBlock({
+        start: new Date(r.start),
+        end: new Date(r.end),
+        status: r.status,
+        label: r.mission,
+        detail: `${r.priority} · ${r.requested_by}`
+      }, start, end));
+
+    if (reservationBlocks.length > 0) return reservationBlocks;
+
+    return resource.availability_windows.flatMap(window =>
+      expandWindow(window, start, end).map(w => ({
+        start: w.start,
+        end: w.end,
+        status: resource.status === 'operational' ? 'available' : resource.status,
+        label: 'available capacity',
+        detail: resource.provider
+      }))
+    );
+  }
+
+  function generateLinkBlocks(link, start, end) {
+    const reservationBlocks = allReservations
+      .filter(r => r.link_id === link.id)
+      .flatMap(r => clipBlock({
+        start: new Date(r.start),
+        end: new Date(r.end),
+        status: r.status === 'active' ? link.status : r.status,
+        label: r.mission,
+        detail: `${contractByResource.get(link.resource_id)?.label ?? 'N/A'} · ${r.priority}`
+      }, start, end));
+
+    if (reservationBlocks.length > 0) return fillGaps(reservationBlocks, start, end, 'unavailable');
+
+    const windows = link.schedule ? expandWindow(link.schedule, start, end) : [{ start, end }];
+    if (windows.length === 0) return [{ start, end, status: 'unavailable', label: 'not scheduled', detail: '' }];
+    return fillGaps(windows.map(w => ({
+      start: w.start,
+      end: w.end,
+      status: link.status,
+      label: link.name,
+      detail: contractByResource.get(link.resource_id)?.label ?? 'N/A'
+    })), start, end, 'unavailable');
+  }
+
+  function expandWindow(schedule, start, end) {
+    if (!schedule || !schedule.start || !schedule.end) return [];
+    const schedStart = new Date(schedule.start);
+    const schedEnd = new Date(schedule.end);
     const windowMs = schedEnd.getTime() - schedStart.getTime();
-    if (windowMs <= 0) return [{ start, end, status: link.status }];
-
-    const dayMs = 86400000;
-    const isDaily = link.schedule.recurrence === 'daily';
-
-    // Collect all scheduled windows that overlap [start, end]
-    /** @type {Array<{start: Date, end: Date}>} */
+    if (windowMs <= 0) return [];
+    const recurrence = schedule.recurrence ?? 'none';
+    const stepMs = recurrence === 'weekly' ? 7 * 86400000 : 86400000;
     const windows = [];
-
-    if (isDaily) {
-      // Find the first occurrence on or before our start
-      const daysBefore = Math.floor((start.getTime() - schedStart.getTime()) / dayMs);
-      for (let d = Math.max(0, daysBefore - 1); ; d++) {
-        const ws = new Date(schedStart.getTime() + d * dayMs);
+    if (recurrence === 'daily' || recurrence === 'weekly') {
+      const stepsBefore = Math.floor((start.getTime() - schedStart.getTime()) / stepMs);
+      for (let i = Math.max(0, stepsBefore - 1); ; i++) {
+        const ws = new Date(schedStart.getTime() + i * stepMs);
         const we = new Date(ws.getTime() + windowMs);
         if (ws.getTime() >= end.getTime()) break;
-        if (we.getTime() > start.getTime()) {
-          windows.push({ start: ws, end: we });
-        }
+        if (we.getTime() > start.getTime()) windows.push({ start: ws, end: we });
       }
-    } else {
-      // One-shot: only if it overlaps
-      if (schedEnd.getTime() > start.getTime() && schedStart.getTime() < end.getTime()) {
-        windows.push({ start: schedStart, end: schedEnd });
-      }
+    } else if (schedEnd.getTime() > start.getTime() && schedStart.getTime() < end.getTime()) {
+      windows.push({ start: schedStart, end: schedEnd });
     }
+    return windows.map(w => ({
+      start: new Date(Math.max(w.start.getTime(), start.getTime())),
+      end: new Date(Math.min(w.end.getTime(), end.getTime()))
+    }));
+  }
 
-    if (windows.length === 0) {
-      return [{ start, end, status: 'unavailable' }];
-    }
+  function clipBlock(block, start, end) {
+    if (block.end.getTime() <= start.getTime() || block.start.getTime() >= end.getTime()) return [];
+    return [{
+      ...block,
+      start: new Date(Math.max(block.start.getTime(), start.getTime())),
+      end: new Date(Math.min(block.end.getTime(), end.getTime()))
+    }];
+  }
 
-    // Build blocks by filling gaps with 'unavailable'
-    const blocks = [];
+  function fillGaps(blocks, start, end, gapStatus) {
+    const sorted = [...blocks].sort((a, b) => a.start.getTime() - b.start.getTime());
+    const out = [];
     let cursor = start;
-
-    for (const w of windows) {
-      const wStart = new Date(Math.max(w.start.getTime(), start.getTime()));
-      const wEnd = new Date(Math.min(w.end.getTime(), end.getTime()));
-
-      // Gap before this window
-      if (wStart.getTime() > cursor.getTime()) {
-        blocks.push({ start: new Date(cursor), end: wStart, status: 'unavailable' });
+    for (const block of sorted) {
+      if (block.start.getTime() > cursor.getTime()) {
+        out.push({ start: new Date(cursor), end: block.start, status: gapStatus, label: 'gap', detail: '' });
       }
-      // The scheduled window
-      blocks.push({ start: wStart, end: wEnd, status: link.status });
-      cursor = wEnd;
+      out.push(block);
+      cursor = block.end;
     }
-
-    // Trailing gap
     if (cursor.getTime() < end.getTime()) {
-      blocks.push({ start: new Date(cursor), end: end, status: 'unavailable' });
+      out.push({ start: new Date(cursor), end, status: gapStatus, label: 'gap', detail: '' });
     }
-
-    return blocks;
+    return out;
   }
 
   function getBlockLeft(block) {
@@ -151,9 +245,17 @@
 
   const statusColors = {
     active: '#3fb950',
+    available: '#3fb950',
+    approved: '#3fb950',
+    requested: '#58a6ff',
     degraded: '#d29922',
+    conflicted: '#f85149',
+    denied: '#f85149',
     unavailable: '#f85149',
-    scheduled: '#484f58'
+    completed: '#8b949e',
+    scheduled: '#484f58',
+    maintenance: '#d29922',
+    offline: '#f85149'
   };
 
   const LINK_COLORS = {
@@ -161,6 +263,13 @@
     los_radio: '#4caf50',
     voip: '#ff9800',
     xmpp: '#9c27b0'
+  };
+
+  const RESOURCE_COLORS = {
+    satellite_transponder: '#00bcd4',
+    mobile_command_center: '#ffa726',
+    radio_net: '#4caf50',
+    ip_service: '#9c27b0'
   };
 
   function formatTime(date) {
@@ -171,7 +280,6 @@
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   }
 
-  // Generate time axis labels
   let timeLabels = $derived(() => {
     const labels = [];
     const step = totalMs / 8;
@@ -196,6 +304,15 @@
     </div>
 
     <div class="gh-filters">
+      <div class="filter-group">
+        <label class="form-label" for="gh-view-mode">View By</label>
+        <select id="gh-view-mode" class="form-select" bind:value={viewMode}>
+          <option value="asset">Asset</option>
+          <option value="resource">Resource</option>
+          <option value="link">Comm Link</option>
+        </select>
+      </div>
+
       <div class="filter-group">
         <label class="form-label" for="gh-time-range">Time Range</label>
         <select id="gh-time-range" class="form-select" bind:value={timeRange}>
@@ -263,24 +380,25 @@
     </div>
 
     <!-- Asset tracks -->
-    {#each tracks() as track (track.asset.id)}
+    {#each tracks() as track (track.id)}
       <div class="asset-track">
         <div class="track-label">
-          <div class="track-name">{track.asset.callsign}</div>
-          <span class="badge badge-{track.asset.platform}" style="font-size:9px">{track.asset.platform}</span>
+          <div class="track-name">{track.label}</div>
+          <span class="badge badge-{track.badgeClass}" style="font-size:9px">{track.badge}</span>
         </div>
         <div class="track-content">
           {#each track.linkTracks as lt}
             <div class="link-row">
-              <div class="link-row-label" style="color:{LINK_COLORS[lt.link.type] || '#888'}">
-                {lt.link.name.length > 20 ? lt.link.name.substring(0, 20) + '...' : lt.link.name}
+              <div class="link-row-label" style="color:{lt.color || '#888'}">
+                {lt.label.length > 24 ? lt.label.substring(0, 24) + '...' : lt.label}
+                <span class="billing-chip">{lt.billing}</span>
               </div>
               <div class="link-row-blocks">
                 {#each lt.blocks as block}
                   <div
-                    class="availability-block"
+                    class="availability-block block-{block.status}"
                     style="left:{getBlockLeft(block)}%; width:{getBlockWidth(block)}%; background:{statusColors[block.status] || '#484f58'}"
-                    title="{block.status}: {formatTime(block.start)} - {formatTime(block.end)}"
+                    title="{block.label || block.status}: {formatTime(block.start)} - {formatTime(block.end)} {block.detail ? `· ${block.detail}` : ''}"
                   ></div>
                 {/each}
               </div>
@@ -487,6 +605,15 @@
     opacity: 1;
   }
 
+  .billing-chip {
+    margin-left: var(--space-xs);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    background: rgba(88, 166, 255, 0.16);
+    color: var(--color-primary);
+    font-size: 8px;
+  }
+
   .link-row-blocks {
     flex: 1;
     position: relative;
@@ -509,6 +636,23 @@
   .availability-block:hover {
     opacity: 1;
     z-index: 5;
+  }
+
+  .block-requested,
+  .block-scheduled {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.14) 0,
+      rgba(255,255,255,0.14) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+
+  .block-conflicted,
+  .block-denied {
+    outline: 2px solid rgba(248, 81, 73, 0.75);
+    outline-offset: -2px;
   }
 
   /* Playhead */

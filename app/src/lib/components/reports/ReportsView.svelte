@@ -1,11 +1,12 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { assets, commLinks, frequencies, satellites, get } from '$lib/data/stores.js';
+  import { assets, commLinks, frequencies, satellites, resources, contracts, reservations, usageRecords, get } from '$lib/data/stores.js';
   import {
     generateNodeStatusReport,
     generateFrequencyReport,
     generateSatelliteReport,
     generateLinkAvailabilityReport,
+    generateUtilizationReport,
     toCSV
   } from '$lib/utils/reports.js';
   import { downloadFile } from '$lib/utils/xml.js';
@@ -18,19 +19,28 @@
   let allLinks = $state(get(commLinks));
   let allFreqs = $state(get(frequencies));
   let allSats = $state(get(satellites));
+  let allResources = $state(get(resources));
+  let allContracts = $state(get(contracts));
+  let allReservations = $state(get(reservations));
+  let allUsage = $state(get(usageRecords));
 
   const unsubs = [
     assets.subscribe(v => allAssets = v),
     commLinks.subscribe(v => allLinks = v),
     frequencies.subscribe(v => allFreqs = v),
-    satellites.subscribe(v => allSats = v)
+    satellites.subscribe(v => allSats = v),
+    resources.subscribe(v => allResources = v),
+    contracts.subscribe(v => allContracts = v),
+    reservations.subscribe(v => allReservations = v),
+    usageRecords.subscribe(v => allUsage = v)
   ];
   onDestroy(() => unsubs.forEach(u => u()));
 
   let nodeReport = $derived(generateNodeStatusReport(allAssets, allLinks));
   let freqReport = $derived(generateFrequencyReport(allFreqs, allAssets));
-  let satReport = $derived(generateSatelliteReport(allSats, allLinks));
-  let availReport = $derived(generateLinkAvailabilityReport(allLinks));
+  let satReport = $derived(generateSatelliteReport(allSats, allLinks, allResources, allUsage));
+  let availReport = $derived(generateLinkAvailabilityReport(allLinks, allContracts, allReservations, allUsage, allResources));
+  let utilizationReport = $derived(generateUtilizationReport(allResources, allContracts, allReservations, allUsage, allAssets, allLinks));
 
   // Plotly chart containers
   let nodeChartEl = $state();
@@ -156,7 +166,8 @@
     { id: 'nodes', label: 'Node Status' },
     { id: 'frequency', label: 'Frequency' },
     { id: 'satellite', label: 'Satellite' },
-    { id: 'availability', label: 'Availability' }
+    { id: 'availability', label: 'Availability' },
+    { id: 'utilization', label: 'Utilization' }
   ];
 </script>
 
@@ -326,6 +337,10 @@
           <div class="summary-value" style="color: var(--color-degraded)">{availReport.summary.total_downtime_hours}h</div>
           <div class="summary-label">Total Downtime</div>
         </div>
+        <div class="card summary-card">
+          <div class="summary-value" style="color: var(--color-aircraft)">${availReport.summary.metered_cost}</div>
+          <div class="summary-label">Metered Cost</div>
+        </div>
       </div>
 
       <div class="chart-container mt-md" bind:this={availChartEl}></div>
@@ -336,11 +351,16 @@
             <tr>
               <th>Link Name</th>
               <th>Type</th>
+              <th>Resource</th>
+              <th>Billing</th>
+              <th>Reservation</th>
               <th>Status</th>
               <th>Scheduled (h)</th>
+              <th>Used (h)</th>
               <th>Available (h)</th>
               <th>Down (h)</th>
               <th>Uptime %</th>
+              <th>Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -348,11 +368,134 @@
             <tr>
               <td>{row.name}</td>
               <td><span class="badge badge-{row.type}">{row.type}</span></td>
+              <td class="text-xs">{row.resource}</td>
+              <td><span class="badge badge-billing">{row.billing_label}</span></td>
+              <td><span class="badge badge-{row.reservation_status}">{row.reservation_status}</span></td>
               <td><span class="badge badge-{row.status}">{row.status}</span></td>
               <td>{row.scheduled_hours}</td>
+              <td>{row.used_hours}</td>
               <td>{row.available_hours}</td>
               <td>{row.unavailable_hours}</td>
               <td class="font-mono" style="color: {row.uptime_percent > 90 ? 'var(--color-active)' : row.uptime_percent > 50 ? 'var(--color-degraded)' : 'var(--color-unavailable)'}">{row.uptime_percent}%</td>
+              <td class="font-mono">${row.cost_estimate}</td>
+            </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {/if}
+
+    <!-- RESOURCE UTILIZATION -->
+    {#if activeTab === 'utilization'}
+    <div class="report-section">
+      <div class="report-header">
+        <h2>Resource Utilization & Cost</h2>
+        <div class="flex gap-sm">
+          <button class="btn btn-sm" onclick={() => exportCSV(utilizationReport.resourceRows, 'resource-utilization')}>Export Resources CSV</button>
+          <button class="btn btn-sm" onclick={() => exportJSON(utilizationReport, 'utilization')}>Export JSON</button>
+        </div>
+      </div>
+
+      <div class="summary-cards">
+        <div class="card summary-card">
+          <div class="summary-value" style="color: var(--color-primary)">{utilizationReport.summary.reservation_count}</div>
+          <div class="summary-label">Reservations</div>
+        </div>
+        <div class="card summary-card">
+          <div class="summary-value" style="color: var(--color-aircraft)">${utilizationReport.summary.total_cost}</div>
+          <div class="summary-label">Estimated Metered Cost</div>
+        </div>
+        <div class="card summary-card">
+          <div class="summary-value" style="color: var(--color-degraded)">{utilizationReport.summary.metered_resources}</div>
+          <div class="summary-label">Metered Resources</div>
+        </div>
+      </div>
+
+      <h3 class="subsection-title">Resource View</h3>
+      <div class="table-container mt-md">
+        <table>
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Kind</th>
+              <th>Provider</th>
+              <th>Billing</th>
+              <th>Reserved (h)</th>
+              <th>Used (h)</th>
+              <th>Util %</th>
+              <th>Remaining Min</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each utilizationReport.resourceRows as row}
+            <tr>
+              <td>{row.name}</td>
+              <td><span class="badge">{row.kind.replaceAll('_', ' ')}</span></td>
+              <td>{row.provider}</td>
+              <td><span class="badge badge-billing">{row.billing}</span></td>
+              <td>{row.reserved_hours}</td>
+              <td>{row.used_hours}</td>
+              <td class="font-mono" style="color: {row.utilization_percent > 90 ? 'var(--color-unavailable)' : row.utilization_percent > 70 ? 'var(--color-degraded)' : 'var(--color-active)'}">{row.utilization_percent}%</td>
+              <td>{row.remaining_minutes ?? 'N/A'}</td>
+              <td class="font-mono">${row.cost_estimate}</td>
+            </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="subsection-title">Asset Consumers</h3>
+      <div class="table-container mt-md">
+        <table>
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Name</th>
+              <th>Links</th>
+              <th>Used (h)</th>
+              <th>Data (MB)</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each utilizationReport.assetRows as row}
+            <tr>
+              <td class="font-mono">{row.callsign}</td>
+              <td>{row.name}</td>
+              <td>{row.links}</td>
+              <td>{row.used_hours}</td>
+              <td>{row.data_mb}</td>
+              <td class="font-mono">${row.cost_estimate}</td>
+            </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="subsection-title">Comm Link Consumers</h3>
+      <div class="table-container mt-md">
+        <table>
+          <thead>
+            <tr>
+              <th>Link</th>
+              <th>Type</th>
+              <th>Billing</th>
+              <th>Used (h)</th>
+              <th>Data (MB)</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each utilizationReport.linkRows as row}
+            <tr>
+              <td>{row.name}</td>
+              <td><span class="badge badge-{row.type}">{row.type}</span></td>
+              <td><span class="badge badge-billing">{row.billing}</span></td>
+              <td>{row.used_hours}</td>
+              <td>{row.data_mb}</td>
+              <td class="font-mono">${row.cost_estimate}</td>
             </tr>
             {/each}
           </tbody>
@@ -422,6 +565,13 @@
   .report-header h2 {
     font-size: var(--text-xl);
     font-weight: 700;
+  }
+
+  .subsection-title {
+    margin-top: var(--space-lg);
+    margin-bottom: var(--space-sm);
+    font-size: var(--text-base);
+    color: var(--text-primary);
   }
 
   .chart-container {

@@ -1,6 +1,6 @@
 <script>
   import { get } from 'svelte/store';
-  import { commLinks, assetMap, removeCommLink } from '$lib/data/stores.js';
+  import { commLinks, assetMap, resourceMap, contractByResource, reservations, usageRecords, removeCommLink } from '$lib/data/stores.js';
   import { toast } from '$lib/utils/toast.js';
   import { onDestroy } from 'svelte';
 
@@ -9,11 +9,26 @@
 
   let allLinks = $state(get(commLinks));
   let lookup = $state(get(assetMap));
+  let resourcesLookup = $state(get(resourceMap));
+  let contractsLookup = $state(get(contractByResource));
+  let allReservations = $state(get(reservations));
+  let allUsage = $state(get(usageRecords));
   const unsub1 = commLinks.subscribe(v => allLinks = v);
   const unsub2 = assetMap.subscribe(v => lookup = v);
-  onDestroy(() => { unsub1(); unsub2(); });
+  const unsub3 = resourceMap.subscribe(v => resourcesLookup = v);
+  const unsub4 = contractByResource.subscribe(v => contractsLookup = v);
+  const unsub5 = reservations.subscribe(v => allReservations = v);
+  const unsub6 = usageRecords.subscribe(v => allUsage = v);
+  onDestroy(() => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); });
 
   let link = $derived(allLinks.find(l => l.id === linkId));
+  let resource = $derived(link?.resource_id ? resourcesLookup.get(link.resource_id) : null);
+  let contract = $derived(link?.resource_id ? contractsLookup.get(link.resource_id) : null);
+  let linkReservations = $derived(link ? allReservations.filter(r => r.link_id === link.id || r.resource_id === link.resource_id) : []);
+  let linkUsage = $derived(link ? allUsage.filter(u => u.link_id === link.id || u.resource_id === link.resource_id) : []);
+  let usedMinutes = $derived(linkUsage.reduce((sum, row) => sum + row.minutes_used, 0));
+  let dataMb = $derived(Math.round(linkUsage.reduce((sum, row) => sum + row.data_mb, 0) * 10) / 10);
+  let estimatedCost = $derived(Math.round(linkUsage.reduce((sum, row) => sum + row.cost_estimate, 0) * 100) / 100);
 
   const LINK_COLORS = {
     satellite: '#00bcd4',
@@ -56,7 +71,54 @@
       <span class="info-label">Status</span>
       <span class="badge badge-{link.status}">{link.status}</span>
     </div>
+    {#if contract}
+    <div class="info-row">
+      <span class="info-label">Billing</span>
+      <span class="badge badge-billing">{contract.label}</span>
+    </div>
+    {/if}
   </div>
+
+  <!-- Resource / entitlement -->
+  {#if resource || contract}
+  <div class="section">
+    <h4 class="section-title">Resource & Entitlement</h4>
+    <div class="info-grid">
+      {#if resource}
+      <div class="info-row">
+        <span class="info-label">Resource</span>
+        <span class="info-value">{resource.name}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Provider</span>
+        <span class="info-value">{resource.provider}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Capacity</span>
+        <span class="info-value font-mono">{resource.capacity.bandwidth_khz ?? resource.capacity.channels ?? 'N/A'} {resource.capacity.bandwidth_khz ? 'kHz' : 'channels'}</span>
+      </div>
+      {/if}
+      {#if contract}
+      <div class="info-row">
+        <span class="info-label">Model</span>
+        <span class="info-value">{contract.billing_model.replaceAll('_', ' ')}</span>
+      </div>
+      {#if contract.included_minutes}
+      <div class="info-row">
+        <span class="info-label">Included</span>
+        <span class="info-value font-mono">{contract.included_minutes} min</span>
+      </div>
+      {/if}
+      {#if contract.overage_rate}
+      <div class="info-row">
+        <span class="info-label">Rate</span>
+        <span class="info-value font-mono">${contract.overage_rate} {contract.billing_model === 'pay_per_minute' ? '/ min' : '/ unit'}</span>
+      </div>
+      {/if}
+      {/if}
+    </div>
+  </div>
+  {/if}
 
   <!-- Endpoints -->
   <div class="section">
@@ -156,6 +218,25 @@
   </div>
   {/if}
 
+  <!-- Utilization -->
+  <div class="section">
+    <h4 class="section-title">Utilization</h4>
+    <div class="info-grid">
+      <div class="info-row">
+        <span class="info-label">Used</span>
+        <span class="info-value font-mono">{Math.round(usedMinutes / 6) / 10} h</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Data</span>
+        <span class="info-value font-mono">{dataMb} MB</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Cost</span>
+        <span class="info-value font-mono">${estimatedCost}</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Schedule -->
   {#if link.schedule}
   <div class="section">
@@ -174,6 +255,19 @@
         <span class="info-value">{link.schedule.recurrence}</span>
       </div>
     </div>
+  </div>
+  {/if}
+
+  {#if linkReservations.length > 0}
+  <div class="section">
+    <h4 class="section-title">Reservations</h4>
+    {#each linkReservations.slice(0, 3) as reservation}
+      <div class="endpoint-row reservation-row">
+        <span class="font-mono text-sm">{reservation.mission}</span>
+        <span class="badge badge-{reservation.status}">{reservation.status}</span>
+        <span class="text-xs text-muted">{new Date(reservation.start).toLocaleString()} - {new Date(reservation.end).toLocaleTimeString()}</span>
+      </div>
+    {/each}
   </div>
   {/if}
 
@@ -237,6 +331,11 @@
     background: var(--bg-tertiary);
     border-radius: var(--radius-sm);
     margin-bottom: var(--space-xs);
+  }
+  .reservation-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-xs);
   }
   .panel-actions {
     display: flex;
