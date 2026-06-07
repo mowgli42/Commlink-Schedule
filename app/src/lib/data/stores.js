@@ -16,7 +16,7 @@
  * @typedef {{ bandwidth_khz?: number|null, channels?: number|null, max_concurrent_links?: number|null, coverage_area?: string|null }} ResourceCapacity
  * @typedef {{ start: string, end: string, recurrence?: 'none'|'daily'|'weekly' }} AvailabilityWindow
  * @typedef {{ id: string, kind: 'satellite_transponder'|'mobile_command_center'|'radio_net'|'ip_service', name: string, owner: string, provider: string, status: 'operational'|'maintenance'|'offline', capacity: ResourceCapacity, availability_windows: AvailabilityWindow[], asset_id?: string|null, link_ids: string[] }} Resource
- * @typedef {{ id: string, resource_id: string, billing_model: 'subscription'|'pay_per_minute'|'pay_per_mb'|'reservation'|'hybrid', label: string, included_minutes?: number|null, included_data_mb?: number|null, overage_rate?: number|null, currency?: string|null, priority_class?: string|null }} Contract
+ * @typedef {{ id: string, resource_id: string, billing_model: 'subscription'|'owned'|'pay_per_minute'|'pay_per_mb'|'reservation'|'hybrid', label: string, included_minutes?: number|null, included_data_mb?: number|null, overage_rate?: number|null, currency?: string|null, priority_class?: string|null }} Contract
  * @typedef {{ id: string, resource_id: string, link_id: string|null, asset_ids: string[], start: string, end: string, status: 'requested'|'approved'|'active'|'completed'|'denied'|'conflicted', priority: 'routine'|'priority'|'emergency', mission: string, requested_by: string, approved_by?: string|null, bandwidth_khz?: number|null }} Reservation
  * @typedef {{ id: string, resource_id: string, link_id: string|null, asset_id: string|null, start: string, end: string, minutes_used: number, data_mb: number, cost_estimate: number, quality_summary: string }} UsageRecord
  */
@@ -361,6 +361,72 @@ export function togglePlatform(platform) {
     else next.add(platform);
     return next;
   });
+}
+
+/**
+ * Import a parsed Directory document into planning stores.
+ * @param {ReturnType<import('../utils/xml.js').parseDirectoryXML>} doc
+ * @param {{ replace?: boolean }} [options]
+ */
+export function importDirectoryDocument(doc, options = {}) {
+  const replace = options.replace ?? true;
+
+  if (replace) {
+    assets.set(doc.assets);
+    commLinks.set(doc.commLinks);
+    resources.set(doc.resources);
+    contracts.set(doc.contracts);
+    reservations.set(doc.reservations);
+  } else {
+    mergeById(assets, doc.assets);
+    mergeById(commLinks, doc.commLinks);
+    mergeById(resources, doc.resources);
+    mergeById(contracts, doc.contracts);
+    mergeById(reservations, doc.reservations);
+  }
+
+  syncAssetCommlinks();
+  syncResourceLinkIds();
+}
+
+/** @param {import('svelte/store').Writable<any[]>} store @param {any[]} incoming */
+function mergeById(store, incoming) {
+  store.update((list) => {
+    const map = new Map(list.map((item) => [item.id, item]));
+    for (const item of incoming) map.set(item.id, item);
+    return [...map.values()];
+  });
+}
+
+function syncAssetCommlinks() {
+  const linkList = get(commLinks);
+  assets.update((list) =>
+    list.map((asset) => ({
+      ...asset,
+      commlinks: linkList.filter((l) => l.endpoints.includes(asset.id)).map((l) => l.id),
+    }))
+  );
+}
+
+function syncResourceLinkIds() {
+  const linkList = get(commLinks);
+  resources.update((list) =>
+    list.map((resource) => ({
+      ...resource,
+      link_ids: linkList.filter((l) => l.resource_id === resource.id).map((l) => l.id),
+    }))
+  );
+}
+
+/** Snapshot current planning data for Directory export. */
+export function snapshotDirectoryDocument() {
+  return {
+    assets: get(assets),
+    commLinks: get(commLinks),
+    resources: get(resources),
+    contracts: get(contracts),
+    reservations: get(reservations),
+  };
 }
 
 /** Reset all stores to seed data and clear localStorage. */
