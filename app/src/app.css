@@ -285,6 +285,20 @@ a:hover {
 .badge-los_radio { background: rgba(76,175,80,0.15); color: var(--color-los-radio); }
 .badge-voip { background: rgba(255,152,0,0.15); color: var(--color-voip); }
 .badge-xmpp { background: rgba(156,39,176,0.15); color: var(--color-xmpp); }
+.badge-subscription,
+.badge-pay_per_minute,
+.badge-pay_per_mb,
+.badge-reservation,
+.badge-hybrid,
+.badge-billing { background: rgba(88,166,255,0.15); color: var(--color-primary); }
+.badge-requested { background: rgba(88,166,255,0.15); color: var(--color-primary); }
+.badge-approved { background: rgba(63,185,80,0.15); color: var(--color-active); }
+.badge-completed { background: rgba(139,148,158,0.15); color: var(--text-secondary); }
+.badge-denied,
+.badge-conflicted { background: rgba(248,81,73,0.15); color: var(--color-unavailable); }
+.badge-operational,
+.badge-available { background: rgba(63,185,80,0.15); color: var(--color-active); }
+.badge-offline { background: rgba(248,81,73,0.15); color: var(--color-unavailable); }
 
 /* ─── Buttons ─── */
 

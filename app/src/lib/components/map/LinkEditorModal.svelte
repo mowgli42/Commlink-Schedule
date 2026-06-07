@@ -1,6 +1,6 @@
 <script>
   import { get } from 'svelte/store';
-  import { assets, upsertCommLink } from '$lib/data/stores.js';
+  import { assets, resources, contracts, upsertCommLink } from '$lib/data/stores.js';
   import { toast } from '$lib/utils/toast.js';
 
   /**
@@ -9,7 +9,11 @@
   let { link = null, onclose } = $props();
 
   let allAssets = $state(get(assets));
+  let allResources = $state(get(resources));
+  let allContracts = $state(get(contracts));
   const unsub = assets.subscribe(v => allAssets = v);
+  const unsubResources = resources.subscribe(v => allResources = v);
+  const unsubContracts = contracts.subscribe(v => allContracts = v);
 
   // Build initial form value (runs once at mount; the modal is destroyed/recreated on each open)
   function buildInitialForm(existing) {
@@ -24,7 +28,9 @@
       frequency: { value_mhz: null, bandwidth_khz: null, polarization: '', modulation: '' },
       satellite: null,
       schedule: { start: '', end: '', recurrence: 'daily' },
-      quality: { signal_strength_dbm: null, ber: null, latency_ms: null }
+      quality: { signal_strength_dbm: null, ber: null, latency_ms: null },
+      resource_id: null,
+      contract_id: null
     };
   }
 
@@ -33,6 +39,7 @@
   let form = $state(buildInitialForm(link));
 
   let showSatFields = $derived(form.type === 'satellite');
+  let selectedContract = $derived(allContracts.find(c => c.resource_id === form.resource_id));
 
   // Ensure satellite object when type is satellite
   $effect(() => {
@@ -70,6 +77,8 @@
     if (form.type !== 'satellite') {
       form.satellite = null;
     }
+    const selectedContract = allContracts.find(c => c.resource_id === form.resource_id);
+    form.contract_id = selectedContract?.id ?? null;
     upsertCommLink(form);
     toast(`Saved link: ${form.name}`, 'success');
     onclose();
@@ -81,7 +90,7 @@
 
   // Cleanup
   import { onDestroy } from 'svelte';
-  onDestroy(unsub);
+  onDestroy(() => { unsub(); unsubResources(); unsubContracts(); });
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_interactive_supports_focus -->
@@ -202,6 +211,33 @@
       </fieldset>
       {/if}
 
+      <!-- Resource / entitlement -->
+      <fieldset class="fieldset">
+        <legend>Resource & Entitlement</legend>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="link-resource">Backing Resource</label>
+            <select id="link-resource" class="form-select" bind:value={form.resource_id}>
+              <option value={null}>-- Unassigned --</option>
+              {#each allResources as resource}
+                <option value={resource.id}>{resource.name} — {resource.provider}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Billing Model</div>
+            <div class="entitlement-preview">
+              {#if selectedContract}
+                <span class="badge badge-billing">{selectedContract.label}</span>
+                <span class="text-xs text-muted">{selectedContract.billing_model.replaceAll('_', ' ')}</span>
+              {:else}
+                <span class="text-xs text-muted">Choose a resource to attach billing and reservation rules.</span>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
       <!-- Schedule -->
       <fieldset class="fieldset">
         <legend>Schedule</legend>
@@ -278,6 +314,13 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: var(--space-md);
+  }
+  .entitlement-preview {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
   }
   .fieldset {
     border: 1px solid var(--color-border);

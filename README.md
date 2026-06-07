@@ -139,10 +139,17 @@ The **Satellite** tab monitors transponder utilization:
 
 The **Availability** tab is the operational health dashboard:
 
-- **Summary cards** at the top: mean availability %, best link (name + uptime), worst link, and total downtime hours
+- **Summary cards** at the top: mean availability %, best link, worst link, downtime hours, and metered cost
 - **Bar chart**: per-link uptime percentage, color-coded (green >90%, yellow 50-90%, red <50%)
-- **Table**: every link with type, status, scheduled hours, available hours, downtime hours, and uptime percentage
+- **Table**: every link with type, backing resource, billing model, reservation state, scheduled hours, used hours, available hours, downtime hours, uptime percentage, and estimated cost
 - Exportable to CSV and JSON
+
+The **Utilization** tab tracks scarce resources and consumers:
+
+- **Resource view**: satellite transponders, radio nets, IP services, and deployable command centers with reserved hours, used hours, utilization %, remaining included minutes, and cost
+- **Asset consumers**: used hours, data volume, estimated cost, and number of links used by each asset
+- **Comm link consumers**: used hours, data volume, and cost by individual link
+- Billing badges distinguish **SUB**, **OWNED**, **$/MIN**, **RESERVE**, and **BASE+OVERAGE** services
 
 ---
 
@@ -150,15 +157,19 @@ The **Availability** tab is the operational health dashboard:
 
 ![Guitar Hero Timeline](docs/screenshots/10-guitar-hero.png)
 
-The **Timeline** view (labeled "FUTURE v2") is a Guitar-Hero-inspired horizontal display showing when each comm link is available or unavailable for every asset:
+The **Timeline** view is a Guitar-Hero-inspired horizontal display showing availability, reservation, and utilization windows. It supports three planning modes:
 
-- Each **row** is an asset (identified by callsign + platform badge)
-- Each **sub-row** within an asset shows one comm link
+- **Asset mode** answers: "What can this unit use?"
+- **Resource mode** answers: "Who is consuming scarce capacity?"
+- **Comm Link mode** answers: "Is this path up, reserved, or costing money?"
+- Each row displays a billing or platform badge so metered, subscription, and reservation-only systems are visible at a glance
 - **Color blocks** encode status:
   - Green = **active** (link is up and operational)
   - Yellow = **degraded** (link has reduced capacity)
   - Red = **unavailable** (link is down)
   - Gray = **scheduled** (planned but not confirmed)
+  - Blue striped = **requested** reservation
+  - Red outline = **conflicted** or denied reservation
 - A white **playhead cursor** marks the current time, advancing in real-time
 - **Filters**: time range (6h/12h/24h/48h), platform, link type
 - **Auto-scroll** keeps the playhead centered as time advances
