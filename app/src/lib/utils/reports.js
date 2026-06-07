@@ -162,15 +162,9 @@ export function generateLinkAvailabilityReport(links, contracts = [], reservatio
   const rows = links.map(l => {
     const linkReservations = reservationsByLink.get(l.id) ?? [];
     const linkUsage = usageByLink.get(l.id) ?? [];
-    const scheduledHours = linkReservations.length > 0
-      ? linkReservations.reduce((sum, r) => sum + hoursBetween(r.start, r.end), 0)
-      : l.schedule
-        ? hoursBetween(l.schedule.start, l.schedule.end)
-        : 24;
+    const scheduledHours = scheduledHoursForLink(l, linkReservations);
     const usedHours = linkUsage.reduce((sum, u) => sum + (u.minutes_used / 60), 0);
-    const availableHours = l.status === 'active' ? scheduledHours
-      : l.status === 'degraded' ? scheduledHours * 0.7
-      : 0;
+    const availableHours = availableHoursForStatus(l.status, scheduledHours);
     const uptimePercent = scheduledHours > 0 ? (availableHours / scheduledHours) * 100 : 0;
     const contract = contractById.get(l.contract_id) ?? contracts.find(c => c.resource_id === l.resource_id) ?? null;
     const resource = resourceById.get(l.resource_id) ?? null;
@@ -325,6 +319,22 @@ function minutesBetween(start, end) {
 
 function hoursBetween(start, end) {
   return minutesBetween(start, end) / 60;
+}
+
+function scheduledHoursForLink(link, linkReservations) {
+  if (linkReservations.length > 0) {
+    return linkReservations.reduce((sum, r) => sum + hoursBetween(r.start, r.end), 0);
+  }
+  if (link.schedule) {
+    return hoursBetween(link.schedule.start, link.schedule.end);
+  }
+  return 24;
+}
+
+function availableHoursForStatus(status, scheduledHours) {
+  if (status === 'active') return scheduledHours;
+  if (status === 'degraded') return scheduledHours * 0.7;
+  return 0;
 }
 
 function groupBy(rows, key) {
