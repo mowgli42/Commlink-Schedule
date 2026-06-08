@@ -28,13 +28,32 @@ npm run dev   # Dev server at http://localhost:5173
 npm run build # Static build to app/build/
 ```
 
+## Commlink integration (cross-repo)
+
+Phase order (see `docs/COMMLINK-INTEGRATION-ROADMAP.md`):
+
+1. **Commlink-Directory** — XML v1.1 source format (canonical `sample-directory.xml`)
+2. **This repo** — import/export + validation against that source
+3. **o-my** — commlink status service (`uci.commlink.*` topics)
+4. **o-my-sim** — OMS `PlatformStatusReport` comm subsystems + scenario readiness
+
+Do not build o-my/o-my-sim prototypes from seed data alone. Import `app/static/fixtures/commlink-directory-v1.1.xml` (mirrors Directory sample) and run the **Reports → Source Validation** tab before handoff.
+
+```bash
+cd app && npm test    # XML import/export + validation smoke tests
+cd app && npm run build
+```
+
 ## Key Files
 
 - `openspec/` — Specifications and proposals
-- `app/src/lib/data/stores.js` — Reactive data stores (assets, links, satellites, frequencies)
-- `app/src/lib/data/seed.js` — Sample data
-- `app/src/lib/utils/xml.js` — Commlink-Directory XML import/export
-- `app/src/lib/utils/reports.js` — Report data generators
+- `docs/COMMLINK-INTEGRATION-ROADMAP.md` — Schedule-side integration phases
+- `app/static/fixtures/commlink-directory-v1.1.xml` — Handoff fixture (sync with Commlink-Directory)
+- `app/src/lib/data/stores.js` — Reactive data stores (assets, links, resources, contracts, reservations)
+- `app/src/lib/data/seed.js` — Legacy seed data (superseded by Directory import for integration work)
+- `app/src/lib/utils/xml.js` — Commlink-Directory XML v1.0/v1.1 import/export
+- `app/src/lib/utils/directoryValidation.js` — Source-data validation before downstream handoff
+- `app/src/lib/utils/reports.js` — Report data generators (includes source validation)
 - `app/src/lib/components/` — Svelte UI components (map, addressbook, reports, guitarhero)
 
 ## Conventions

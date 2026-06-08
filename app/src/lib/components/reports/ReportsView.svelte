@@ -7,6 +7,7 @@
     generateSatelliteReport,
     generateLinkAvailabilityReport,
     generateUtilizationReport,
+    generateSourceValidationReport,
     toCSV
   } from '$lib/utils/reports.js';
   import { downloadFile } from '$lib/utils/xml.js';
@@ -41,6 +42,7 @@
   let satReport = $derived(generateSatelliteReport(allSats, allLinks, allResources, allUsage));
   let availReport = $derived(generateLinkAvailabilityReport(allLinks, allContracts, allReservations, allUsage, allResources));
   let utilizationReport = $derived(generateUtilizationReport(allResources, allContracts, allReservations, allUsage, allAssets, allLinks));
+  let validationReport = $derived(generateSourceValidationReport(allAssets, allLinks, allResources, allContracts, allReservations, allUsage));
 
   // Plotly chart containers
   let nodeChartEl = $state();
@@ -167,7 +169,8 @@
     { id: 'frequency', label: 'Frequency' },
     { id: 'satellite', label: 'Satellite' },
     { id: 'availability', label: 'Availability' },
-    { id: 'utilization', label: 'Utilization' }
+    { id: 'utilization', label: 'Utilization' },
+    { id: 'validation', label: 'Source Validation' }
   ];
 </script>
 
@@ -496,6 +499,74 @@
               <td>{row.used_hours}</td>
               <td>{row.data_mb}</td>
               <td class="font-mono">${row.cost_estimate}</td>
+            </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {/if}
+
+    <!-- SOURCE VALIDATION -->
+    {#if activeTab === 'validation'}
+    <div class="report-section">
+      <div class="report-header">
+        <h2>Directory Source Validation</h2>
+        <div class="flex gap-sm">
+          <button class="btn btn-sm" onclick={() => exportCSV(validationReport.rows, 'source-validation')}>Export CSV</button>
+          <button class="btn btn-sm" onclick={() => exportJSON(validationReport, 'source-validation')}>Export JSON</button>
+        </div>
+      </div>
+
+      <p class="text-sm text-secondary mb-md">
+        Checks imported Commlink-Directory data before o-my and o-my-sim handoff.
+        Import <code>fixtures/commlink-directory-v1.1.xml</code> from the Address Book to validate the canonical fixture.
+      </p>
+
+      <div class="summary-cards">
+        <div class="card summary-card">
+          <div class="summary-value" style="color: {validationReport.summary.ready_for_handoff ? 'var(--color-active)' : 'var(--color-unavailable)'}">
+            {validationReport.summary.ready_for_handoff ? 'Ready' : 'Blocked'}
+          </div>
+          <div class="summary-label">Handoff Status</div>
+        </div>
+        <div class="card summary-card">
+          <div class="summary-value" style="color: var(--color-unavailable)">{validationReport.summary.errors}</div>
+          <div class="summary-label">Errors</div>
+        </div>
+        <div class="card summary-card">
+          <div class="summary-value" style="color: var(--color-degraded)">{validationReport.summary.warnings}</div>
+          <div class="summary-label">Warnings</div>
+        </div>
+        <div class="card summary-card">
+          <div class="summary-value">{validationReport.summary.link_count}</div>
+          <div class="summary-label">Comm Links</div>
+        </div>
+      </div>
+
+      <div class="table-container mt-md">
+        <table>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Code</th>
+              <th>Entity</th>
+              <th>ID</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each validationReport.rows as row}
+            <tr>
+              <td><span class="badge badge-{row.severity === 'error' ? 'unavailable' : row.severity === 'warning' ? 'degraded' : 'active'}">{row.severity}</span></td>
+              <td class="font-mono text-xs">{row.code}</td>
+              <td>{row.entity_type}</td>
+              <td class="font-mono text-xs">{row.entity_id}</td>
+              <td>{row.message}</td>
+            </tr>
+            {:else}
+            <tr>
+              <td colspan="5" class="text-muted">No validation issues — source data looks ready for downstream services.</td>
             </tr>
             {/each}
           </tbody>

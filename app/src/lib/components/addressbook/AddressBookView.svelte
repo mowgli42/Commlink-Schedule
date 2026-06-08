@@ -1,7 +1,8 @@
 <script>
   import { onDestroy } from 'svelte';
-  import { assets, upsertAsset, removeAsset, currentView } from '$lib/data/stores.js';
-  import { parseCommLinkXML, exportCommLinkXML, downloadFile, generateExportFilename } from '$lib/utils/xml.js';
+  import { assets, upsertAsset, removeAsset, importDirectoryDocument, snapshotDirectoryDocument, currentView } from '$lib/data/stores.js';
+  import { parseDirectoryXML, exportDirectoryXML, downloadFile, generateExportFilename } from '$lib/utils/xml.js';
+  import { validateSourceData } from '$lib/utils/directoryValidation.js';
   import { toast } from '$lib/utils/toast.js';
 
   let allAssets = $state([]);
@@ -47,13 +48,31 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const { assets: imported, errors } = parseCommLinkXML(ev.target.result);
-        if (imported.length > 0) {
-          imported.forEach(a => upsertAsset(a));
-          toast(`Imported ${imported.length} contacts`, 'success');
+        const doc = parseDirectoryXML(ev.target.result);
+        if (doc.errors.length > 0 && doc.assets.length === 0) {
+          toast(doc.errors[0], 'error');
+          return;
         }
-        if (errors.length > 0) {
-          toast(`${errors.length} entries skipped: ${errors[0]}`, 'warning');
+        importDirectoryDocument(doc, { replace: true });
+        const parts = [`${doc.assets.length} contacts`];
+        if (doc.resources.length) parts.push(`${doc.resources.length} resources`);
+        if (doc.commLinks.length) parts.push(`${doc.commLinks.length} comm links`);
+        if (doc.reservations.length) parts.push(`${doc.reservations.length} reservations`);
+        const validation = validateSourceData({
+          assets: doc.assets,
+          commLinks: doc.commLinks,
+          resources: doc.resources,
+          contracts: doc.contracts,
+          reservations: doc.reservations,
+        });
+        const valNote = validation.summary.errors
+          ? ` — ${validation.summary.errors} validation error(s)`
+          : validation.summary.warnings
+            ? ` — ${validation.summary.warnings} warning(s)`
+            : '';
+        toast(`Imported ${parts.join(', ')}${valNote}`, validation.summary.errors ? 'warning' : 'success');
+        if (doc.errors.length > 0) {
+          toast(`Parse notes: ${doc.errors[0]}`, 'warning');
         }
       };
       reader.readAsText(file);
@@ -66,8 +85,10 @@
       toast('No contacts to export', 'error');
       return;
     }
-    const xml = exportCommLinkXML(allAssets);
-    const filename = generateExportFilename(allAssets.length);
+    const snapshot = snapshotDirectoryDocument();
+    const hasScheduling = snapshot.resources.length > 0 || snapshot.commLinks.length > 0;
+    const xml = exportDirectoryXML(snapshot);
+    const filename = generateExportFilename(allAssets.length, hasScheduling);
     downloadFile(xml, filename);
     toast(`Exported as ${filename}`, 'success');
   }

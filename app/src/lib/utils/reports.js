@@ -3,6 +3,42 @@
  * Produces data structures suitable for Plotly charts and CSV export.
  */
 
+import { validateSourceData } from './directoryValidation.js';
+
+/**
+ * Generate source-data validation report for Directory integration handoff.
+ * @param {import('../data/stores.js').Asset[]} assets
+ * @param {import('../data/stores.js').CommLink[]} links
+ * @param {import('../data/stores.js').Resource[]} resources
+ * @param {import('../data/stores.js').Contract[]} contracts
+ * @param {import('../data/stores.js').Reservation[]} reservations
+ * @param {import('../data/stores.js').UsageRecord[]} usageRecords
+ */
+export function generateSourceValidationReport(assets, links, resources, contracts, reservations, usageRecords) {
+  const validation = validateSourceData({
+    assets,
+    commLinks: links,
+    resources,
+    contracts,
+    reservations,
+    usageRecords,
+  });
+
+  const rows = validation.issues.map((issue) => ({
+    severity: issue.severity,
+    code: issue.code,
+    entity_type: issue.entity_type,
+    entity_id: issue.entity_id,
+    message: issue.message,
+  }));
+
+  return {
+    rows,
+    summary: validation.summary,
+    generated: validation.generated,
+  };
+}
+
 /**
  * Generate node status report data.
  * @param {import('../data/stores.js').Asset[]} assets
