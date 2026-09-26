@@ -1,0 +1,7 @@
+# Node / SvelteKit app
+app/node_modules/
+
+# Secrets (never commit private keys)
+*-key.pem
+*.key
+.env
